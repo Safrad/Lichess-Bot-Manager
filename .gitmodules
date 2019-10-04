@@ -1,0 +1,3 @@
+[submodule "src/Sx-Library"]
+	path = src/Sx-Library
+	url = https://github.com/Safrad/Sx-Library.git
