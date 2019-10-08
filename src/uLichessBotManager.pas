@@ -24,6 +24,13 @@ type
     procedure OnTimerEvent(Sender: TObject);
 
     procedure SetRestartBotIfFails(const Value: BG);
+    procedure StopAlRunningAndNotPlayingBots;
+    procedure CheckBotsIfNotFailed;
+    procedure AbortStartOfAllBots;
+    procedure StartOneBot;
+    function IsSomeBotTryingToStart: BG;
+    procedure CreateTimer;
+    procedure CheckBotIfNotFailed(Bot: TLichessBot);
   public
     constructor Create;
     destructor Destroy; override;
@@ -64,10 +71,7 @@ begin
 
   RWOptions(False);
 
-  FSxThreadTimer := TSxThreadTimer.Create;
-  FSxThreadTimer.Interval.Seconds := 15;
-  FSxThreadTimer.OnTimer := OnTimerEvent;
-  FSxThreadTimer.Enabled := True;;
+  CreateTimer;
 end;
 
 destructor TLichessBotManager.Destroy;
@@ -109,62 +113,15 @@ begin
 end;
 
 procedure TLichessBotManager.OnTimerEvent(Sender: TObject);
-var
-  Bot, Bot2: TLichessBot;
 begin
-  // Stop all running and not playing bots
-  for Bot in FLichessBots do
-  begin
-    if (Bot.RequiredStop) and (Bot.UsedGames = 0) then
-    begin
-      Bot.RequiredStop := False;
-      Bot.ForceStop;
-    end;
-  end;
+  StopAlRunningAndNotPlayingBots;
 
-  // Check if not failed
-  for Bot in FLichessBots do
-  begin
-    if (Bot.State in [bsTryingStart, bsStarted]) and (not Bot.ExternalApplication.Running) then
-    begin
-      if Bot.State = bsTryingStart then
-      begin
-        Bot.State := bsStartFailed;
-        // Do not try other bots
-        for Bot2 in FLichessBots do
-          Bot2.RequiredStart := False;
-        Exit;
-      end
-      else
-      begin
-        Bot.State := bsLetterFailed;
-        if FRestartBotIfFails then
-          Bot.RequiredStart := True;
-      end;
-      Bot.AddFail;
-    end;
-  end;
+  CheckBotsIfNotFailed;
 
-  for Bot in FLichessBots do
-  begin
-    if Bot.State = bsTryingStart then
-    begin
-      // Wait, do not try to start another bot
-      Exit;
-    end;
-  end;
+  if IsSomeBotTryingToStart then
+    Exit;
 
-  // Start one bot
-  for Bot in FLichessBots do
-  begin
-    if Bot.RequiredStart then
-    begin
-      Bot.RequiredStart := False;
-      Bot.ForceStart;
-      // Wait for next
-      Exit;
-    end;
-  end;
+  StartOneBot;
 end;
 
 procedure TLichessBotManager.RWOptions(const ASave: BG);
@@ -233,6 +190,103 @@ begin
   for Bot in FLichessBots do
   begin
     Bot.Stop;
+  end;
+end;
+
+procedure TLichessBotManager.CheckBotIfNotFailed(Bot: TLichessBot);
+begin
+  if (Bot.State in [bsTryingStart, bsStarted]) and (not Bot.ExternalApplication.Running) then
+  begin
+    if Bot.State = bsTryingStart then
+    begin
+      Bot.State := bsStartFailed;
+      AbortStartOfAllBots;
+      Bot.AddFail('Failed to start bot');
+    end
+    else
+    begin
+      Bot.State := bsLetterFailed;
+      if FRestartBotIfFails then
+      begin
+        Bot.AddFail('Bot terminated unexpectly, I will try to start it again');
+        Bot.RequiredStart := True;
+      end
+      else
+        Bot.AddFail('Bot terminated unexpectly');
+    end;
+  end;
+end;
+
+procedure TLichessBotManager.CreateTimer;
+begin
+  FSxThreadTimer := TSxThreadTimer.Create;
+  FSxThreadTimer.Interval.Seconds := 15;
+  FSxThreadTimer.OnTimer := OnTimerEvent;
+  FSxThreadTimer.Enabled := True;
+end;
+
+function TLichessBotManager.IsSomeBotTryingToStart: BG;
+var
+  Bot: TLichessBot;
+begin
+  for Bot in FLichessBots do
+  begin
+    if Bot.State = bsTryingStart then
+    begin
+      // Wait, do not try to start another bot
+      Result := True;
+      Exit;
+    end;
+  end;
+  Result := False;
+end;
+
+procedure TLichessBotManager.StartOneBot;
+var
+  Bot: TLichessBot;
+begin
+  for Bot in FLichessBots do
+  begin
+    if Bot.RequiredStart then
+    begin
+      Bot.RequiredStart := False;
+      Bot.ForceStart;
+      // Wait before start next bot
+      Break;
+    end;
+  end;
+end;
+
+procedure TLichessBotManager.AbortStartOfAllBots;
+var
+  Bot: TLichessBot;
+begin
+  // Do not try other bots
+  for Bot in FLichessBots do
+    Bot.RequiredStart := False;
+end;
+
+procedure TLichessBotManager.CheckBotsIfNotFailed;
+var
+  Bot: TLichessBot;
+begin
+  for Bot in FLichessBots do
+  begin
+    CheckBotIfNotFailed(Bot);
+  end;
+end;
+
+procedure TLichessBotManager.StopAlRunningAndNotPlayingBots;
+var
+  Bot: TLichessBot;
+begin
+  for Bot in FLichessBots do
+  begin
+    if (Bot.RequiredStop) and (Bot.UsedGames = 0) then
+    begin
+      Bot.RequiredStop := False;
+      Bot.ForceStop;
+    end;
   end;
 end;
 
