@@ -34,6 +34,7 @@ type
     FPlayedGames: UG;
     FState: TBotState;
     FValueErrorCount: UG;
+    FLastGameDate: TDateTime;
 
     procedure Clear;
 
@@ -76,6 +77,7 @@ type
     property QueuedGames: UG read FQueuedGames;
     property UsedGames: SG read FUsedGames;
     property PlayedGames: UG read FPlayedGames;
+    property LastGameDate: TDateTime read FLastGameDate;
     property State: TBotState read FState write SetState;
     property WebAddress: string read GetWebAddress;
 
@@ -157,7 +159,7 @@ end;
 
 function TLichessBot.GetWebAddress: string;
 begin
-  Result := 'https://lichess.org/@/' + FName + '/all';
+  Result := 'https://lichess.org/@/' + DelFileExt(ExtractFileName(FFileName)) + '/all';
 end;
 
 procedure TLichessBot.Clear;
@@ -244,7 +246,10 @@ begin
     LastUsedGames := FUsedGames;
     FUsedGames := ReadSGFast(AText, InTextIndex);
     if FUsedGames > LastUsedGames then
+    begin
+      FLastGameDate := Now;
       Inc(FPlayedGames, FUsedGames - LastUsedGames);
+    end;
   end;
 end;
 

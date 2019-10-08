@@ -178,6 +178,13 @@ begin
     Data := Bot.PlayedGames;
     if Bot.QueuedGames > 0 then
       DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncBlue));
+  end;
+  15:
+  begin
+    if Bot.LastGameDate > 0 then
+      Data := Bot.LastGameDate
+    else
+      Data := NAStr;
   end
   else
     Data := Null;
@@ -334,7 +341,7 @@ procedure TfMain.CreateColumns;
 var
   s: string;
 begin
-  DView1.ColumnCount := 15;
+  DView1.ColumnCount := 16;
   DView1.Columns[0].Caption := '#';
   DView1.Columns[0].Alignment := taRightJustify;
   DView1.Columns[0].Width := DView1.Canvas.TextWidth('888') + 2 * FormBorder;
@@ -344,7 +351,7 @@ begin
   DView1.Columns[2].Caption := 'Configuration Path';
   DView1.Columns[2].Alignment := taLeftJustify;
   DView1.Columns[2].Width := 450;
-  DView1.Columns[3].Caption := 'Modified';
+  DView1.Columns[3].Caption := 'Modified Date';
   DView1.Columns[3].Alignment := taLeftJustify;
   s := DateTimeToStr(32045.458);
   DView1.Columns[3].Width := DView1.Canvas.TextWidth(s) + 2 * FormBorder;
@@ -359,26 +366,29 @@ begin
   DView1.Columns[7].Alignment := taLeftJustify;
   DView1.Columns[7].Width := DView1.Canvas.TextWidth(DView1.Columns[7].Caption) + 2 * FormBorder;
   DView1.Columns[8].Caption := 'Exit Code';
-  DView1.Columns[8].Alignment := taLeftJustify;
+  DView1.Columns[8].Alignment := taRightJustify;
   DView1.Columns[8].Width := DView1.Canvas.TextWidth(DView1.Columns[8].Caption) + 2 * FormBorder;
   DView1.Columns[9].Caption := 'Value Errors';
-  DView1.Columns[9].Alignment := taLeftJustify;
+  DView1.Columns[9].Alignment := taRightJustify;
   DView1.Columns[9].Width := DView1.Canvas.TextWidth(DView1.Columns[9].Caption) + 2 * FormBorder;
   DView1.Columns[10].Caption := 'Errors';
-  DView1.Columns[10].Alignment := taLeftJustify;
+  DView1.Columns[10].Alignment := taRightJustify;
   DView1.Columns[10].Width := DView1.Canvas.TextWidth(DView1.Columns[10].Caption) + 2 * FormBorder;
   DView1.Columns[11].Caption := 'Fails';
-  DView1.Columns[11].Alignment := taLeftJustify;
+  DView1.Columns[11].Alignment := taRightJustify;
   DView1.Columns[11].Width := DView1.Canvas.TextWidth(DView1.Columns[11].Caption) + 2 * FormBorder;
   DView1.Columns[12].Caption := 'Queued Games';
-  DView1.Columns[12].Alignment := taLeftJustify;
+  DView1.Columns[12].Alignment := taRightJustify;
   DView1.Columns[12].Width := DView1.Canvas.TextWidth(DView1.Columns[12].Caption) + 2 * FormBorder;
   DView1.Columns[13].Caption := 'Used Games';
-  DView1.Columns[13].Alignment := taLeftJustify;
+  DView1.Columns[13].Alignment := taRightJustify;
   DView1.Columns[13].Width := DView1.Canvas.TextWidth(DView1.Columns[13].Caption) + 2 * FormBorder;
   DView1.Columns[14].Caption := 'Played Games';
-  DView1.Columns[14].Alignment := taLeftJustify;
+  DView1.Columns[14].Alignment := taRightJustify;
   DView1.Columns[14].Width := DView1.Canvas.TextWidth(DView1.Columns[14].Caption) + 2 * FormBorder;
+  DView1.Columns[15].Caption := 'Last Game Date';
+  DView1.Columns[15].Alignment := taLeftJustify;
+  DView1.Columns[15].Width := DView1.Canvas.TextWidth(s) + 2 * FormBorder;
 end;
 
 function TfMain.GetStateAsText(const Bot: TLichessBot): string;
