@@ -3,13 +3,14 @@ unit uMain;
 interface
 
 uses
+  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, uDWinControl, uDImage, uDView, Vcl.StdCtrls, Vcl.Menus,
+
   uTypes,
   uDForm,
 
-  uLichessBotManager,
-
-  Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, uDWinControl, uDImage, uDView, Vcl.StdCtrls, Vcl.Menus;
+  uLichessBot,
+  uLichessBotManager;
 
 type
   TfMain = class(TDForm)
@@ -33,6 +34,7 @@ type
     StopAll1: TMenuItem;
     PopupMenu1: TPopupMenu;
     Bots1: TMenuItem;
+    OpenLichessBotWebPage1: TMenuItem;
     procedure DView1GetDataEx(Sender: TObject; var Data: Variant; ColIndex, RowIndex: Integer; Rect: TRect);
     procedure FormShow(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -52,11 +54,14 @@ type
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure StopAll1Click(Sender: TObject);
     procedure PopupMenu1Popup(Sender: TObject);
+    procedure OpenLichessBotWebPage1Click(Sender: TObject);
   private
     FLichessBotManager: TLichessBotManager;
     procedure ReadFolder;
     procedure RWOptions(const Save: BG);
     procedure SetLichessBotManager(const Value: TLichessBotManager);
+    procedure CreateColumns;
+    function GetStateAsText(const Bot: TLichessBot): string;
   public
     property LichessBotManager: TLichessBotManager read FLichessBotManager write SetLichessBotManager;
   end;
@@ -82,25 +87,24 @@ uses
   uOutputInfo,
   uNamedColors,
   uColor,
-  uMenus,
-
-  uLichessBot;
+  uMenus;
 
 procedure TfMain.DView1DblClick(Sender: TObject);
 begin
   if (DView1.IY >= 0) and (DView1.IX >= 0) then
   begin
-    if DView1.IX >= 5 then
+    if DView1.IX < 7 then
+      BotConfiguration1Click(Sender)
+    else if DView1.IX < 10 then
       OpenLogFile1Click(Sender)
     else
-      BotConfiguration1Click(Sender);
+      OpenLichessBotWebPage1Click(Sender);
   end;
 end;
 
 procedure TfMain.DView1GetDataEx(Sender: TObject; var Data: Variant; ColIndex, RowIndex: Integer; Rect: TRect);
 var
   Bot: TLichessBot;
-  s: string;
 begin
   Bot := FLichessBotManager.LichessBots[RowIndex];
   case ColIndex of
@@ -125,42 +129,7 @@ begin
   end;
   7:
   begin
-    case Bot.State of
-    bsNone:
-      s := '–';
-    bsTryingStart:
-    begin
-      DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncOrange));
-      s := 'Trying to log on';
-    end;
-    bsStartFailed:
-    begin
-      DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncRed));
-      s := 'Failed to start';
-    end;
-    bsStopped:
-    begin
-      s := 'Stopped';
-    end;
-    bsStarted:
-    begin
-      DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncGreen));
-      s := 'Running'
-    end;
-    end;
-
-    if Bot.RequiredStart then
-    begin
-      DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncYellowGreen));
-      AppendStrSeparator(s, 'Scheduled to start', ' | ');
-    end;
-
-    if Bot.RequiredStop then
-    begin
-      DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncYellow));
-      AppendStrSeparator(s, 'Scheduled to stop', ' | ');
-    end;
-    Data := s;
+    Data := GetStateAsText(Bot);
   end;
   8:
   begin
@@ -177,7 +146,7 @@ begin
   9:
   begin
     Data := Bot.ValueErrorCount;
-    if Bot.ErrorCount > 0 then
+    if Bot.ValueErrorCount > 0 then
       DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncRed));
   end;
   10:
@@ -260,54 +229,9 @@ begin
 end;
 
 procedure TfMain.FormCreate(Sender: TObject);
-var
-  s: string;
 begin
-  DView1.ColumnCount := 15;
-  DView1.Columns[0].Caption := '#';
-  DView1.Columns[0].Alignment := taRightJustify;
-  DView1.Columns[0].Width := DView1.Canvas.TextWidth('888') + 2 * FormBorder;
-  DView1.Columns[1].Caption := 'Name';
-  DView1.Columns[1].Alignment := taLeftJustify;
-  DView1.Columns[1].Width := DView1.Canvas.TextWidth('Super Lichess Bot') + 2 * FormBorder;
-  DView1.Columns[2].Caption := 'Configuration Path';
-  DView1.Columns[2].Alignment := taLeftJustify;
-  DView1.Columns[2].Width := 450;
-  DView1.Columns[3].Caption := 'Modified';
-  DView1.Columns[3].Alignment := taLeftJustify;
-  s := DateTimeToStr(32045.458);
-  DView1.Columns[3].Width := DView1.Canvas.TextWidth(s) + 2 * FormBorder;
-  DView1.Columns[4].Caption := 'Size';
-  DView1.Columns[4].Alignment := taRightJustify;
-  DView1.Columns[5].Caption := 'Memory';
-  DView1.Columns[5].Alignment := taRightJustify;
-  DView1.Columns[6].Caption := 'Initialization Time [ms]';
-  DView1.Columns[6].Alignment := taRightJustify;
-  DView1.Columns[6].Width := DView1.Canvas.TextWidth(DView1.Columns[6].Caption) + 2 * FormBorder;
-  DView1.Columns[7].Caption := 'Status';
-  DView1.Columns[7].Alignment := taLeftJustify;
-  DView1.Columns[7].Width := DView1.Canvas.TextWidth(DView1.Columns[7].Caption) + 2 * FormBorder;
-  DView1.Columns[8].Caption := 'Exit Code';
-  DView1.Columns[8].Alignment := taLeftJustify;
-  DView1.Columns[8].Width := DView1.Canvas.TextWidth(DView1.Columns[8].Caption) + 2 * FormBorder;
-  DView1.Columns[9].Caption := 'Value Errors';
-  DView1.Columns[9].Alignment := taLeftJustify;
-  DView1.Columns[9].Width := DView1.Canvas.TextWidth(DView1.Columns[9].Caption) + 2 * FormBorder;
-  DView1.Columns[10].Caption := 'Errors';
-  DView1.Columns[10].Alignment := taLeftJustify;
-  DView1.Columns[10].Width := DView1.Canvas.TextWidth(DView1.Columns[10].Caption) + 2 * FormBorder;
-  DView1.Columns[11].Caption := 'Fails';
-  DView1.Columns[11].Alignment := taLeftJustify;
-  DView1.Columns[11].Width := DView1.Canvas.TextWidth(DView1.Columns[11].Caption) + 2 * FormBorder;
-  DView1.Columns[12].Caption := 'Queued Games';
-  DView1.Columns[12].Alignment := taLeftJustify;
-  DView1.Columns[12].Width := DView1.Canvas.TextWidth(DView1.Columns[12].Caption) + 2 * FormBorder;
-  DView1.Columns[13].Caption := 'Used Games';
-  DView1.Columns[13].Alignment := taLeftJustify;
-  DView1.Columns[13].Width := DView1.Canvas.TextWidth(DView1.Columns[13].Caption) + 2 * FormBorder;
-  DView1.Columns[14].Caption := 'Played Games';
-  DView1.Columns[14].Alignment := taLeftJustify;
-  DView1.Columns[14].Width := DView1.Canvas.TextWidth(DView1.Columns[14].Caption) + 2 * FormBorder;
+  CreateColumns;
+
   RWOptions(False);
 
   MenuCreate(SelectedBots1, PopupMenu1);
@@ -328,6 +252,15 @@ begin
   ReadFolder;
   if StartBotsAfterApplicationStart1.Checked then
     FLichessBotManager.StartAll;
+end;
+
+procedure TfMain.OpenLichessBotWebPage1Click(Sender: TObject);
+var
+  i: SG;
+begin
+  for i := 0 to DView1.RowCount - 1 do
+    if DView1.SelectedRows[i] then
+      APIOpen(FLichessBotManager.LichessBots[i].WebAddress);
 end;
 
 procedure TfMain.OpenLogFile1Click(Sender: TObject);
@@ -395,6 +328,94 @@ end;
 procedure TfMain.SetLichessBotManager(const Value: TLichessBotManager);
 begin
   FLichessBotManager := Value;
+end;
+
+procedure TfMain.CreateColumns;
+var
+  s: string;
+begin
+  DView1.ColumnCount := 15;
+  DView1.Columns[0].Caption := '#';
+  DView1.Columns[0].Alignment := taRightJustify;
+  DView1.Columns[0].Width := DView1.Canvas.TextWidth('888') + 2 * FormBorder;
+  DView1.Columns[1].Caption := 'Name';
+  DView1.Columns[1].Alignment := taLeftJustify;
+  DView1.Columns[1].Width := DView1.Canvas.TextWidth('Super Lichess Bot') + 2 * FormBorder;
+  DView1.Columns[2].Caption := 'Configuration Path';
+  DView1.Columns[2].Alignment := taLeftJustify;
+  DView1.Columns[2].Width := 450;
+  DView1.Columns[3].Caption := 'Modified';
+  DView1.Columns[3].Alignment := taLeftJustify;
+  s := DateTimeToStr(32045.458);
+  DView1.Columns[3].Width := DView1.Canvas.TextWidth(s) + 2 * FormBorder;
+  DView1.Columns[4].Caption := 'Size';
+  DView1.Columns[4].Alignment := taRightJustify;
+  DView1.Columns[5].Caption := 'Memory';
+  DView1.Columns[5].Alignment := taRightJustify;
+  DView1.Columns[6].Caption := 'Initialization Time [ms]';
+  DView1.Columns[6].Alignment := taRightJustify;
+  DView1.Columns[6].Width := DView1.Canvas.TextWidth(DView1.Columns[6].Caption) + 2 * FormBorder;
+  DView1.Columns[7].Caption := 'Status';
+  DView1.Columns[7].Alignment := taLeftJustify;
+  DView1.Columns[7].Width := DView1.Canvas.TextWidth(DView1.Columns[7].Caption) + 2 * FormBorder;
+  DView1.Columns[8].Caption := 'Exit Code';
+  DView1.Columns[8].Alignment := taLeftJustify;
+  DView1.Columns[8].Width := DView1.Canvas.TextWidth(DView1.Columns[8].Caption) + 2 * FormBorder;
+  DView1.Columns[9].Caption := 'Value Errors';
+  DView1.Columns[9].Alignment := taLeftJustify;
+  DView1.Columns[9].Width := DView1.Canvas.TextWidth(DView1.Columns[9].Caption) + 2 * FormBorder;
+  DView1.Columns[10].Caption := 'Errors';
+  DView1.Columns[10].Alignment := taLeftJustify;
+  DView1.Columns[10].Width := DView1.Canvas.TextWidth(DView1.Columns[10].Caption) + 2 * FormBorder;
+  DView1.Columns[11].Caption := 'Fails';
+  DView1.Columns[11].Alignment := taLeftJustify;
+  DView1.Columns[11].Width := DView1.Canvas.TextWidth(DView1.Columns[11].Caption) + 2 * FormBorder;
+  DView1.Columns[12].Caption := 'Queued Games';
+  DView1.Columns[12].Alignment := taLeftJustify;
+  DView1.Columns[12].Width := DView1.Canvas.TextWidth(DView1.Columns[12].Caption) + 2 * FormBorder;
+  DView1.Columns[13].Caption := 'Used Games';
+  DView1.Columns[13].Alignment := taLeftJustify;
+  DView1.Columns[13].Width := DView1.Canvas.TextWidth(DView1.Columns[13].Caption) + 2 * FormBorder;
+  DView1.Columns[14].Caption := 'Played Games';
+  DView1.Columns[14].Alignment := taLeftJustify;
+  DView1.Columns[14].Width := DView1.Canvas.TextWidth(DView1.Columns[14].Caption) + 2 * FormBorder;
+end;
+
+function TfMain.GetStateAsText(const Bot: TLichessBot): string;
+begin
+  case Bot.State of
+    bsNone:
+      Result := '–';
+    bsTryingStart:
+      begin
+        DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncOrange));
+        Result := 'Trying to log on';
+      end;
+    bsStartFailed:
+      begin
+        DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncRed));
+        Result := 'Failed to start';
+      end;
+    bsStopped:
+      begin
+        Result := 'Stopped';
+      end;
+    bsStarted:
+      begin
+        DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncGreen));
+        Result := 'Running';
+      end;
+  end;
+  if Bot.RequiredStart then
+  begin
+    DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncYellowGreen));
+    AppendStrSeparator(Result, 'Scheduled to start', ' | ');
+  end;
+  if Bot.RequiredStop then
+  begin
+    DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncYellow));
+    AppendStrSeparator(Result, 'Scheduled to stop', ' | ');
+  end;
 end;
 
 procedure TfMain.Start1Click(Sender: TObject);
