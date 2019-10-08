@@ -345,7 +345,7 @@ begin
   DView1.Columns[0].Caption := '#';
   DView1.Columns[0].Alignment := taRightJustify;
   DView1.Columns[0].Width := DView1.Canvas.TextWidth('888') + 2 * FormBorder;
-  DView1.Columns[1].Caption := 'Name';
+  DView1.Columns[1].Caption := 'Engine Name';
   DView1.Columns[1].Alignment := taLeftJustify;
   DView1.Columns[1].Width := DView1.Canvas.TextWidth('Super Lichess Bot') + 2 * FormBorder;
   DView1.Columns[2].Caption := 'Configuration Path';
