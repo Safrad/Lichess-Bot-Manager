@@ -29,7 +29,7 @@ type
     FExternalApplication: TPipedExternalApplication;
     FRequiredStart: BG;
     FQueuedGames: UG;
-    FUsedGames: UG;
+    FUsedGames: SG;
     FRequiredStop: BG;
     FPlayedGames: UG;
     FState: TBotState;
@@ -74,7 +74,7 @@ type
     property ErrorCount: UG read FErrorCount;
     property FailCount: UG read FFailCount;
     property QueuedGames: UG read FQueuedGames;
-    property UsedGames: UG read FUsedGames;
+    property UsedGames: SG read FUsedGames;
     property PlayedGames: UG read FPlayedGames;
     property State: TBotState read FState write SetState;
     property WebAddress: string read GetWebAddress;
@@ -225,8 +225,8 @@ end;
 
 procedure TLichessBot.ParseGames(const AText: string);
 var
-  InTextIndex: Integer;
-  LastUsedGames: Cardinal;
+  InTextIndex: SG;
+  LastUsedGames: SG;
 const
   TotalQueuedStr = 'total queued: ';
   TotalUsedStr = 'total used: ';
