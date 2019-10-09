@@ -89,6 +89,7 @@ uses
   uLongOperation,
   uCommonApplication,
   uOutputFormat,
+  uFormatters,
   uMsg,
   uOutputInfo,
   uNamedColors,
@@ -382,7 +383,9 @@ begin
   DView1.AddColumn('Engine File Name', DView1.Canvas.TextWidth('Super-Engine-2.11.exe') + 2 * FormBorder, taLeftJustify);
   DView1.AddColumn('Modified Date', DView1.Canvas.TextWidth(s) + 2 * FormBorder, taLeftJustify);
   DView1.AddColumn('Size', 0, taRightJustify);
+  DView1.Columns[5].Formatter := ByteFormatter;
   DView1.AddColumn('Memory', 0, taRightJustify);
+  DView1.Columns[6].Formatter := ByteFormatter;
   DView1.AddColumn('Initialization Time [ms]', 0, taRightJustify);
   DView1.AddColumn('Status', 0, taLeftJustify);
   DView1.AddColumn('Exit Code', 0, taRightJustify);
