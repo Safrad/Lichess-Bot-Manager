@@ -57,6 +57,17 @@ object fMain: TfMain
         Caption = 'Stop'
         OnClick = Stop1Click
       end
+      object N2: TMenuItem
+        Caption = '-'
+      end
+      object ClearGames1: TMenuItem
+        Caption = 'Clear Games'
+        OnClick = ClearGames1Click
+      end
+      object ClearErrors1: TMenuItem
+        Caption = 'Clear Errors'
+        OnClick = ClearErrors1Click
+      end
       object N1: TMenuItem
         Caption = '-'
       end

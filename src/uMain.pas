@@ -35,6 +35,9 @@ type
     PopupMenu1: TPopupMenu;
     Bots1: TMenuItem;
     OpenLichessBotWebPage1: TMenuItem;
+    ClearErrors1: TMenuItem;
+    ClearGames1: TMenuItem;
+    N2: TMenuItem;
     procedure DView1GetDataEx(Sender: TObject; var Data: Variant; ColIndex, RowIndex: Integer; Rect: TRect);
     procedure FormShow(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -55,12 +58,15 @@ type
     procedure StopAll1Click(Sender: TObject);
     procedure PopupMenu1Popup(Sender: TObject);
     procedure OpenLichessBotWebPage1Click(Sender: TObject);
+    procedure ClearGames1Click(Sender: TObject);
+    procedure ClearErrors1Click(Sender: TObject);
   private
     FLichessBotManager: TLichessBotManager;
     procedure ReadFolder;
     procedure RWOptions(const Save: BG);
     procedure SetLichessBotManager(const Value: TLichessBotManager);
     procedure CreateColumns;
+    procedure OnBotChange(Sender: TObject);
     function GetStateAsText(const Bot: TLichessBot): string;
   public
     property LichessBotManager: TLichessBotManager read FLichessBotManager write SetLichessBotManager;
@@ -93,9 +99,9 @@ procedure TfMain.DView1DblClick(Sender: TObject);
 begin
   if (DView1.IY >= 0) and (DView1.IX >= 0) then
   begin
-    if DView1.IX < 7 then
+    if DView1.IX < 8 then
       BotConfiguration1Click(Sender)
-    else if DView1.IX < 10 then
+    else if DView1.IX < 11 then
       OpenLogFile1Click(Sender)
     else
       OpenLichessBotWebPage1Click(Sender);
@@ -109,29 +115,30 @@ begin
   Bot := FLichessBotManager.LichessBots[RowIndex];
   case ColIndex of
   0: Data := RowIndex + 1;
-  1: Data := Bot.Name;
-  2: Data := Bot.FileName;
-  3: Data := Bot.FileDateTime;
-  4: Data := Bot.FileSize;
-  5:
+  1: Data := ExtractFilePath(Bot.FileName);
+  2: Data := ExtractFileName(Bot.FileName);
+  3: Data := Bot.Name;
+  4: Data := Bot.FileDateTime;
+  5: Data := Bot.FileSize;
+  6:
   begin
     if Bot.ExternalApplication.Handle <> INVALID_HANDLE_VALUE then
       Data := Bot.AllocatedMemoryPeak
     else
       Data := NAStr;
   end;
-  6:
+  7:
   begin
     if Bot.ExternalApplication.Handle <> INVALID_HANDLE_VALUE then
       Data := Bot.InitializationTime.MillisecondsAsF
     else
       Data := NAStr;
   end;
-  7:
+  8:
   begin
     Data := GetStateAsText(Bot);
   end;
-  8:
+  9:
   begin
     if Bot.ExternalApplication.Handle <> INVALID_HANDLE_VALUE then
     begin
@@ -143,43 +150,43 @@ begin
     else
       Data := NAStr; // Not run yet or failed to run
   end;
-  9:
+  10:
   begin
     Data := Bot.ValueErrorCount;
     if Bot.ValueErrorCount > 0 then
       DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncRed));
   end;
-  10:
+  11:
   begin
     Data := Bot.ErrorCount;
     if Bot.ErrorCount > 0 then
       DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncRed));
   end;
-  11:
+  12:
   begin
     Data := Bot.FailCount;
     if Bot.FailCount > 0 then
       DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncRed));
   end;
-  12:
+  13:
   begin
     Data := Bot.QueuedGames;
     if Bot.QueuedGames > 0 then
       DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncBlue));
   end;
-  13:
+  14:
   begin
     Data := Bot.UsedGames;
     if Bot.UsedGames > 0 then
       DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncBlue));
   end;
-  14:
+  15:
   begin
     Data := Bot.PlayedGames;
     if Bot.QueuedGames > 0 then
       DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncBlue));
   end;
-  15:
+  16:
   begin
     if Bot.LastGameDate > 0 then
       Data := Bot.LastGameDate
@@ -247,6 +254,8 @@ end;
 procedure TfMain.FormDestroy(Sender: TObject);
 begin
   RWOptions(True);
+
+  FLichessBotManager.OnChange := nil;
 end;
 
 procedure TfMain.FormShow(Sender: TObject);
@@ -259,6 +268,11 @@ begin
   ReadFolder;
   if StartBotsAfterApplicationStart1.Checked then
     FLichessBotManager.StartAll;
+end;
+
+procedure TfMain.OnBotChange(Sender: TObject);
+begin
+  DView1.DataChanged;
 end;
 
 procedure TfMain.OpenLichessBotWebPage1Click(Sender: TObject);
@@ -335,60 +349,50 @@ end;
 procedure TfMain.SetLichessBotManager(const Value: TLichessBotManager);
 begin
   FLichessBotManager := Value;
+  FLichessBotManager.OnChange := OnBotChange;
+end;
+
+procedure TfMain.ClearErrors1Click(Sender: TObject);
+var
+  i: SG;
+begin
+  for i := 0 to DView1.RowCount - 1 do
+    if DView1.SelectedRows[i] then
+      FLichessBotManager.LichessBots[i].ClearErrors;
+end;
+
+procedure TfMain.ClearGames1Click(Sender: TObject);
+var
+  i: SG;
+begin
+  for i := 0 to DView1.RowCount - 1 do
+    if DView1.SelectedRows[i] then
+      FLichessBotManager.LichessBots[i].ClearGames;
 end;
 
 procedure TfMain.CreateColumns;
 var
   s: string;
 begin
-  DView1.ColumnCount := 16;
-  DView1.Columns[0].Caption := '#';
-  DView1.Columns[0].Alignment := taRightJustify;
-  DView1.Columns[0].Width := DView1.Canvas.TextWidth('888') + 2 * FormBorder;
-  DView1.Columns[1].Caption := 'Engine Name';
-  DView1.Columns[1].Alignment := taLeftJustify;
-  DView1.Columns[1].Width := DView1.Canvas.TextWidth('Super Lichess Bot') + 2 * FormBorder;
-  DView1.Columns[2].Caption := 'Configuration Path';
-  DView1.Columns[2].Alignment := taLeftJustify;
-  DView1.Columns[2].Width := 450;
-  DView1.Columns[3].Caption := 'Modified Date';
-  DView1.Columns[3].Alignment := taLeftJustify;
   s := DateTimeToStr(32045.458);
-  DView1.Columns[3].Width := DView1.Canvas.TextWidth(s) + 2 * FormBorder;
-  DView1.Columns[4].Caption := 'Size';
-  DView1.Columns[4].Alignment := taRightJustify;
-  DView1.Columns[5].Caption := 'Memory';
-  DView1.Columns[5].Alignment := taRightJustify;
-  DView1.Columns[6].Caption := 'Initialization Time [ms]';
-  DView1.Columns[6].Alignment := taRightJustify;
-  DView1.Columns[6].Width := DView1.Canvas.TextWidth(DView1.Columns[6].Caption) + 2 * FormBorder;
-  DView1.Columns[7].Caption := 'Status';
-  DView1.Columns[7].Alignment := taLeftJustify;
-  DView1.Columns[7].Width := DView1.Canvas.TextWidth(DView1.Columns[7].Caption) + 2 * FormBorder;
-  DView1.Columns[8].Caption := 'Exit Code';
-  DView1.Columns[8].Alignment := taRightJustify;
-  DView1.Columns[8].Width := DView1.Canvas.TextWidth(DView1.Columns[8].Caption) + 2 * FormBorder;
-  DView1.Columns[9].Caption := 'Value Errors';
-  DView1.Columns[9].Alignment := taRightJustify;
-  DView1.Columns[9].Width := DView1.Canvas.TextWidth(DView1.Columns[9].Caption) + 2 * FormBorder;
-  DView1.Columns[10].Caption := 'Errors';
-  DView1.Columns[10].Alignment := taRightJustify;
-  DView1.Columns[10].Width := DView1.Canvas.TextWidth(DView1.Columns[10].Caption) + 2 * FormBorder;
-  DView1.Columns[11].Caption := 'Fails';
-  DView1.Columns[11].Alignment := taRightJustify;
-  DView1.Columns[11].Width := DView1.Canvas.TextWidth(DView1.Columns[11].Caption) + 2 * FormBorder;
-  DView1.Columns[12].Caption := 'Queued Games';
-  DView1.Columns[12].Alignment := taRightJustify;
-  DView1.Columns[12].Width := DView1.Canvas.TextWidth(DView1.Columns[12].Caption) + 2 * FormBorder;
-  DView1.Columns[13].Caption := 'Used Games';
-  DView1.Columns[13].Alignment := taRightJustify;
-  DView1.Columns[13].Width := DView1.Canvas.TextWidth(DView1.Columns[13].Caption) + 2 * FormBorder;
-  DView1.Columns[14].Caption := 'Played Games';
-  DView1.Columns[14].Alignment := taRightJustify;
-  DView1.Columns[14].Width := DView1.Canvas.TextWidth(DView1.Columns[14].Caption) + 2 * FormBorder;
-  DView1.Columns[15].Caption := 'Last Game Date';
-  DView1.Columns[15].Alignment := taLeftJustify;
-  DView1.Columns[15].Width := DView1.Canvas.TextWidth(s) + 2 * FormBorder;
+
+  DView1.AddColumn('#', DView1.Canvas.TextWidth('888') + 2 * FormBorder, taRightJustify);
+  DView1.AddColumn('Configuration Path', 50 * DView1.Canvas.TextWidth('W') + 2 * FormBorder, taLeftJustify);
+  DView1.AddColumn('File Name', DView1.Canvas.TextWidth('Super Lichess Bot') + 2 * FormBorder, taLeftJustify);
+  DView1.AddColumn('Engine File Name', DView1.Canvas.TextWidth('Super-Engine-2.11.exe') + 2 * FormBorder, taLeftJustify);
+  DView1.AddColumn('Modified Date', DView1.Canvas.TextWidth(s) + 2 * FormBorder, taLeftJustify);
+  DView1.AddColumn('Size', 0, taRightJustify);
+  DView1.AddColumn('Memory', 0, taRightJustify);
+  DView1.AddColumn('Initialization Time [ms]', 0, taRightJustify);
+  DView1.AddColumn('Status', 0, taLeftJustify);
+  DView1.AddColumn('Exit Code', 0, taRightJustify);
+  DView1.AddColumn('Value Errors', 0, taRightJustify);
+  DView1.AddColumn('Errors', 0, taRightJustify);
+  DView1.AddColumn('Fails', 0, taRightJustify);
+  DView1.AddColumn('Queued Games', 0, taRightJustify);
+  DView1.AddColumn('Used Games', 0, taRightJustify);
+  DView1.AddColumn('Played Games', 0, taRightJustify);
+  DView1.AddColumn('Last Game Date', DView1.Canvas.TextWidth(s) + 2 * FormBorder, taLeftJustify);
 end;
 
 function TfMain.GetStateAsText(const Bot: TLichessBot): string;
