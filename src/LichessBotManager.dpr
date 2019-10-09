@@ -19,8 +19,12 @@ begin
       GLichessBotManager := TLichessBotManager.Create;
       try
         GUIApplication.CreateForm(TfMain, fMain);
-        fMain.LichessBotManager := GLichessBotManager;
-        GUIApplication.Run;
+        try
+          fMain.LichessBotManager := GLichessBotManager;
+          GUIApplication.Run;
+        finally
+          fMain.LichessBotManager := nil;
+        end;
       finally
         GLichessBotManager.Free;
       end;

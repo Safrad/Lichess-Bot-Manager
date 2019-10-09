@@ -102,7 +102,7 @@ begin
   begin
     if DView1.IX < 8 then
       BotConfiguration1Click(Sender)
-    else if DView1.IX < 11 then
+    else if DView1.IX < 14 then
       OpenLogFile1Click(Sender)
     else
       OpenLichessBotWebPage1Click(Sender);
@@ -257,13 +257,12 @@ begin
   RWOptions(False);
 
   MenuCreate(SelectedBots1, PopupMenu1);
+  MenuSet(PopupMenu1);
 end;
 
 procedure TfMain.FormDestroy(Sender: TObject);
 begin
   RWOptions(True);
-
-  FLichessBotManager.OnChange := nil;
 end;
 
 procedure TfMain.FormShow(Sender: TObject);
@@ -280,7 +279,12 @@ end;
 
 procedure TfMain.OnBotChange(Sender: TObject);
 begin
-  DView1.DataChanged;
+  try
+    DView1.DataChanged;
+  except
+    on E: Exception do
+      Fatal(E);
+  end;
 end;
 
 procedure TfMain.OpenLichessBotWebPage1Click(Sender: TObject);
@@ -356,8 +360,13 @@ end;
 
 procedure TfMain.SetLichessBotManager(const Value: TLichessBotManager);
 begin
+  if FLichessBotManager <> nil then
+    FLichessBotManager.OnChange := nil;
+
   FLichessBotManager := Value;
-  FLichessBotManager.OnChange := OnBotChange;
+
+  if FLichessBotManager <> nil then
+    FLichessBotManager.OnChange := OnBotChange;
 end;
 
 procedure TfMain.ClearErrors1Click(Sender: TObject);

@@ -76,12 +76,12 @@ object fMain: TfMain
         OnClick = BotConfiguration1Click
       end
       object OpenLogFile1: TMenuItem
-        Caption = 'Open Log File.. Left Mouse Dbl Click (next 3 columns)'
+        Caption = 'Open Log File.. Left Mouse Dbl Click (next 6 columns)'
         OnClick = OpenLogFile1Click
       end
       object OpenLichessBotWebPage1: TMenuItem
         Caption = 
-          'Open Lichess Bot Web Page... Left Mouse Dbl Click (last 3 column' +
+          'Open Lichess Bot Web Page... Left Mouse Dbl Click (last 4 column' +
           's)'
         OnClick = OpenLichessBotWebPage1Click
       end
