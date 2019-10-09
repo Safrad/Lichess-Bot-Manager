@@ -3,6 +3,7 @@ unit uLichessBot;
 interface
 
 uses
+  Classes,
   SysUtils,
   Generics.Collections,
 
@@ -35,8 +36,10 @@ type
     FState: TBotState;
     FValueErrorCount: UG;
     FLastGameDate: TDateTime;
+    FOnChange: TNotifyEvent;
 
     procedure Clear;
+    procedure Changed;
 
     procedure OnReadLine(const AText: string);
     procedure ParseGames(const AText: string);
@@ -54,6 +57,7 @@ type
     procedure SetState(const Value: TBotState);
     procedure SetValueErrorCount(const Value: UG);
     procedure ParseErrorText(const AText: string);
+    procedure SetOnChange(const Value: TNotifyEvent);
   public
     constructor Create;
     destructor Destroy; override;
@@ -64,6 +68,7 @@ type
     property FileSize: U8 read FFileSize write SetFileSize;
     property RequiredStart: BG read FRequiredStart write SetRequiredStart;
     property RequiredStop: BG read FRequiredStop write SetRequiredStop;
+    property OnChange: TNotifyEvent read FOnChange write SetOnChange;
 
     // Output
     property Name: string read FName;
@@ -89,6 +94,8 @@ type
     procedure Restart;
     procedure Stop;
     procedure AddFail(const ALogMessageText: string);
+    procedure ClearErrors;
+    procedure ClearGames;
   end;
 
   TLichessBots = TObjectList<TLichessBot>;
@@ -109,6 +116,7 @@ begin
   Inc(FFailCount);
   if FLogger.IsLoggerFor(mlFatalError) then
     FLogger.Add(ALogMessageText, mlFatalError);
+  Changed;
 end;
 
 procedure TLichessBot.ParseErrorText(const AText: string);
@@ -121,12 +129,16 @@ begin
   end
   else
     Inc(FErrorCount);
+  Changed;
 end;
 
 procedure TLichessBot.ParseInformationalText(const AText: string);
 begin
   if Pos('you''re now connected', AText) <> 0 then
-    FState := bsStarted
+  begin
+    FState := bsStarted;
+    Changed;
+  end
   else
   begin
     ParseGames(AText);
@@ -162,11 +174,32 @@ begin
   Result := 'https://lichess.org/@/' + DelFileExt(ExtractFileName(FFileName)) + '/all';
 end;
 
+procedure TLichessBot.Changed;
+begin
+  if Assigned(FOnChange) then
+    FOnChange(Self);
+end;
+
 procedure TLichessBot.Clear;
 begin
   FQueuedGames := 0;
   FUsedGames := 0;
   FState := bsNone;
+  Changed;
+end;
+
+procedure TLichessBot.ClearErrors;
+begin
+  FFailCount := 0;
+  FErrorCount := 0;
+  FValueErrorCount := 0;
+  Changed;
+end;
+
+procedure TLichessBot.ClearGames;
+begin
+  FPlayedGames := 0;
+  Changed;
 end;
 
 constructor TLichessBot.Create;
@@ -191,6 +224,7 @@ destructor TLichessBot.Destroy;
 begin
   try
     try
+      FOnChange := nil;
       ForceStop;
     finally
       FreeAndNil(FExternalApplication);
@@ -236,8 +270,8 @@ begin
   InTextIndex := Pos(TotalQueuedStr, AText);
   if InTextIndex <> 0 then
   begin
-    FQueuedGames := ReadSGFast(AText, InTextIndex);
     Inc(InTextIndex, Length(TotalQueuedStr));
+    FQueuedGames := ReadSGFast(AText, InTextIndex);
   end;
   InTextIndex := Pos(TotalUsedStr, AText);
   if InTextIndex <> 0 then
@@ -251,6 +285,7 @@ begin
       Inc(FPlayedGames, FUsedGames - LastUsedGames);
     end;
   end;
+  Changed;
 end;
 
 procedure TLichessBot.Restart;
@@ -267,9 +302,10 @@ begin
     Exit;
 
   Clear;
+  FState := bsTryingStart;
+  Changed;
   FExternalApplication.Parameters := 'lichess-bot.py --config "' + FFileName + '"';
   FExternalApplication.CurrentDirectory := ExtractFilePath(FFileName);
-
   try
     try
       FInitializationTime.Ticks := 0;
@@ -335,6 +371,11 @@ begin
   FFileSize := Value;
 end;
 
+procedure TLichessBot.SetOnChange(const Value: TNotifyEvent);
+begin
+  FOnChange := Value;
+end;
+
 procedure TLichessBot.SetRequiredStart(const Value: BG);
 begin
   FRequiredStart := Value;
@@ -358,6 +399,7 @@ end;
 procedure TLichessBot.Start;
 begin
   FRequiredStart := True;
+  Changed;
 end;
 
 procedure TLichessBot.Stop;
@@ -365,7 +407,10 @@ begin
   if FUsedGames = 0 then
     ForceStop
   else
+  begin
     FRequiredStop := True;
+    Changed;
+  end;
 end;
 
 end.

@@ -3,6 +3,7 @@ unit uLichessBotManager;
 interface
 
 uses
+  Classes,
   SysUtils,
 
   uTypes,
@@ -16,12 +17,14 @@ type
     FRootDirectory: string;
     FSxThreadTimer: TSxThreadTimer;
     FRestartBotIfFails: BG;
+    FOnChange: TNotifyEvent;
     procedure TryAddLichessBot(const AFileName: TFileName; const AFileSize: U8; const AFileDate: TDateTime);
     procedure SetRootDirectory(const Value: string);
     procedure RWOptions(const ASave: BG);
     function GetRunningBotCount: UG;
 
     procedure OnTimerEvent(Sender: TObject);
+    procedure Changed;
 
     procedure SetRestartBotIfFails(const Value: BG);
     procedure StopAlRunningAndNotPlayingBots;
@@ -31,6 +34,7 @@ type
     function IsSomeBotTryingToStart: BG;
     procedure CreateTimer;
     procedure CheckBotIfNotFailed(Bot: TLichessBot);
+    procedure SetOnChange(const Value: TNotifyEvent);
   public
     constructor Create;
     destructor Destroy; override;
@@ -38,6 +42,7 @@ type
     // Input
     property RootDirectory: string read FRootDirectory write SetRootDirectory;
     property RestarnBotIfFails: BG read FRestartBotIfFails write SetRestartBotIfFails;
+    property OnChange: TNotifyEvent read FOnChange write SetOnChange;
 
     // Process
     procedure AddLichesBotsFromRootFolder;
@@ -163,6 +168,11 @@ begin
     Information('No yml files found, select different folder.');
 end;
 
+procedure TLichessBotManager.SetOnChange(const Value: TNotifyEvent);
+begin
+  FOnChange := Value;
+end;
+
 procedure TLichessBotManager.SetRestartBotIfFails(const Value: BG);
 begin
   FRestartBotIfFails := Value;
@@ -193,6 +203,12 @@ begin
   end;
 end;
 
+procedure TLichessBotManager.Changed;
+begin
+  if Assigned(FOnChange) then
+    FOnChange(Self);
+end;
+
 procedure TLichessBotManager.CheckBotIfNotFailed(Bot: TLichessBot);
 begin
   if (Bot.State in [bsTryingStart, bsStarted]) and (not Bot.ExternalApplication.Running) then
@@ -214,6 +230,7 @@ begin
       else
         Bot.AddFail('Bot terminated unexpectly');
     end;
+    Changed;
   end;
 end;
 
@@ -301,6 +318,7 @@ begin
       Bot.FileName := AFileName;
       Bot.FileSize := AFileSize;
       Bot.FileDateTime := AFileDate;
+      Bot.OnChange := OnChange;
       FLichessBots.Add(Bot);
     except
       Bot.Free;
