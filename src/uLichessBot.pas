@@ -10,7 +10,8 @@ uses
   uTypes,
   uFileLogger,
   uTimeSpan,
-  uPipedExternalApplication;
+  uPipedExternalApplication,
+  uProcessMemory;
 
 type
   TBotState = (bsNone, bsTryingStart, bsStartFailed, bsLetterFailed, bsStarted, bsStopped);
@@ -26,7 +27,6 @@ type
     FName: string;
     FInitializationTime: TTimeSpan;
     FLogger: TFileLogger;
-    FAllocatedMemoryPeak: U8;
     FExternalApplication: TPipedExternalApplication;
     FRequiredStart: BG;
     FQueuedGames: UG;
@@ -58,6 +58,7 @@ type
     procedure SetValueErrorCount(const Value: UG);
     procedure ParseErrorText(const AText: string);
     procedure SetOnChange(const Value: TNotifyEvent);
+    function GetProcessMemoryCounters: TProcessMemoryCounters;
   public
     constructor Create;
     destructor Destroy; override;
@@ -74,7 +75,7 @@ type
     property Name: string read FName;
     property InitializationTime: TTimeSpan read FInitializationTime;
     property Logger: TFileLogger read FLogger;
-    property AllocatedMemoryPeak: U8 read FAllocatedMemoryPeak;
+    property ProcessMemoryCounters: TProcessMemoryCounters read GetProcessMemoryCounters;
     property ExternalApplication: TPipedExternalApplication read FExternalApplication;
     property ValueErrorCount: UG read FValueErrorCount write SetValueErrorCount;
     property ErrorCount: UG read FErrorCount;
@@ -143,6 +144,11 @@ begin
   begin
     ParseGames(AText);
   end;
+end;
+
+function TLichessBot.GetProcessMemoryCounters: TProcessMemoryCounters;
+begin
+  Result := GetProcessMemoryCountersRecursive(FExternalApplication.ProcessId);
 end;
 
 function TLichessBot.GetContainsError(const ALowerCaseText: string): BG;
@@ -307,23 +313,19 @@ begin
   FExternalApplication.Parameters := 'lichess-bot.py --config "' + FFileName + '"';
   FExternalApplication.CurrentDirectory := ExtractFilePath(FFileName);
   try
-    try
-      FInitializationTime.Ticks := 0;
-      StartTime := MainTimer.Value;
-      FExternalApplication.Execute;
-      FInitializationTime := MainTimer.IntervalFrom(StartTime);
-      FExternalApplication.CheckErrorCode;
-      if FLogger.IsLoggerFor(mlInformation) then
-        FLogger.Add('Started', mlInformation);
-    except
-      on E: Exception do
-      begin
-        if FLogger.IsLoggerFor(mlFatalError) then
-          FLogger.Add(E.Message, mlFatalError);
-      end;
+    FInitializationTime.Ticks := 0;
+    StartTime := MainTimer.Value;
+    FExternalApplication.Execute;
+    FInitializationTime := MainTimer.IntervalFrom(StartTime);
+    FExternalApplication.CheckErrorCode;
+    if FLogger.IsLoggerFor(mlInformation) then
+      FLogger.Add('Started', mlInformation);
+  except
+    on E: Exception do
+    begin
+      if FLogger.IsLoggerFor(mlFatalError) then
+        FLogger.Add(E.Message, mlFatalError);
     end;
-  finally
-    FAllocatedMemoryPeak := FExternalApplication.AllocatedMemoryPeak;
   end;
 end;
 
@@ -332,11 +334,12 @@ begin
   FRequiredStart := False;
   FRequiredStop := False;
   Clear;
-  if FLogger.IsLoggerFor(mlInformation) then
-    FLogger.Add('Stopped', mlInformation);
   if FExternalApplication.Running then
   begin
-    try
+    if FLogger.IsLoggerFor(mlInformation) then
+      FLogger.Add('Stopped', mlInformation);
+    FExternalApplication.TerminateProcessTree; // Hotfix, python do not stop all child processes
+{    try
       FExternalApplication.Close;
       FExternalApplication.WaitFor;
     except
@@ -344,9 +347,9 @@ begin
       begin
         if FLogger.IsLoggerFor(mlError) then
           FLogger.Add(E.Message, mlError);
-        FExternalApplication.TerminateAndWaitFor;
+        FExternalApplication.TerminateProcessTree;
       end;
-    end;
+    end;}
   end;
 end;
 

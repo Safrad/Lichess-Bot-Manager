@@ -124,22 +124,29 @@ begin
   6:
   begin
     if Bot.ExternalApplication.Handle <> INVALID_HANDLE_VALUE then
-      Data := Bot.AllocatedMemoryPeak
+      Data := Bot.ProcessMemoryCounters.WorkingSetSize
     else
       Data := NAStr;
   end;
   7:
   begin
     if Bot.ExternalApplication.Handle <> INVALID_HANDLE_VALUE then
-      Data := Bot.InitializationTime.MillisecondsAsF
+      Data := Bot.ProcessMemoryCounters.PeekWorkingSetSize
     else
       Data := NAStr;
   end;
   8:
   begin
-    Data := GetStateAsText(Bot);
+    if Bot.ExternalApplication.Handle <> INVALID_HANDLE_VALUE then
+      Data := Bot.InitializationTime.MillisecondsAsF
+    else
+      Data := NAStr;
   end;
   9:
+  begin
+    Data := GetStateAsText(Bot);
+  end;
+  10:
   begin
     if Bot.ExternalApplication.Handle <> INVALID_HANDLE_VALUE then
     begin
@@ -151,43 +158,43 @@ begin
     else
       Data := NAStr; // Not run yet or failed to run
   end;
-  10:
+  11:
   begin
     Data := Bot.ValueErrorCount;
     if Bot.ValueErrorCount > 0 then
       DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncRed));
   end;
-  11:
+  12:
   begin
     Data := Bot.ErrorCount;
     if Bot.ErrorCount > 0 then
       DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncRed));
   end;
-  12:
+  13:
   begin
     Data := Bot.FailCount;
     if Bot.FailCount > 0 then
       DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncRed));
   end;
-  13:
+  14:
   begin
     Data := Bot.QueuedGames;
     if Bot.QueuedGames > 0 then
       DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncBlue));
   end;
-  14:
+  15:
   begin
     Data := Bot.UsedGames;
     if Bot.UsedGames > 0 then
       DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncBlue));
   end;
-  15:
+  16:
   begin
     Data := Bot.PlayedGames;
     if Bot.QueuedGames > 0 then
       DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncBlue));
   end;
-  16:
+  17:
   begin
     if Bot.LastGameDate > 0 then
       Data := Bot.LastGameDate
@@ -386,6 +393,8 @@ begin
   DView1.Columns[5].Formatter := ByteFormatter;
   DView1.AddColumn('Memory', 0, taRightJustify);
   DView1.Columns[6].Formatter := ByteFormatter;
+  DView1.AddColumn('Memory Peak', 0, taRightJustify);
+  DView1.Columns[7].Formatter := ByteFormatter;
   DView1.AddColumn('Initialization Time [ms]', 0, taRightJustify);
   DView1.AddColumn('Status', 0, taLeftJustify);
   DView1.AddColumn('Exit Code', 0, taRightJustify);
