@@ -24,7 +24,6 @@ type
     function GetRunningBotCount: UG;
 
     procedure OnTimerEvent(Sender: TObject);
-    procedure Changed;
 
     procedure SetRestartBotIfFails(const Value: BG);
     procedure StopAlRunningAndNotPlayingBots;
@@ -33,8 +32,9 @@ type
     procedure StartOneBot;
     function IsSomeBotTryingToStart: BG;
     procedure CreateTimer;
-    procedure CheckBotIfNotFailed(Bot: TLichessBot);
+    procedure CheckBotIfNotFailed(const ABot: TLichessBot);
     procedure SetOnChange(const Value: TNotifyEvent);
+    function GetPlayingBotCount: UG;
   public
     constructor Create;
     destructor Destroy; override;
@@ -53,6 +53,7 @@ type
     // Output
     property LichessBots: TLichessBots read FLichessBots;
     property RunningBotCount: UG read GetRunningBotCount;
+    property PlayingBotCount: UG read GetPlayingBotCount;
   end;
 
 implementation
@@ -61,7 +62,8 @@ uses
   uFolder,
   uMsg,
   uFiles,
-  uDIniFile;
+  uDIniFile,
+  uOutputFormat;
 
 { TLichessBotManager }
 
@@ -103,6 +105,17 @@ begin
     end;
   end;
   Result := False;
+end;
+
+function TLichessBotManager.GetPlayingBotCount: UG;
+var
+  Bot: TLichessBot;
+begin
+  Result := 0;
+  for Bot in FLichessBots do
+  begin
+    Inc(Result, Bot.UsedGames);
+  end;
 end;
 
 function TLichessBotManager.GetRunningBotCount: UG;
@@ -203,34 +216,27 @@ begin
   end;
 end;
 
-procedure TLichessBotManager.Changed;
+procedure TLichessBotManager.CheckBotIfNotFailed(const ABot: TLichessBot);
 begin
-  if Assigned(FOnChange) then
-    FOnChange(Self);
-end;
-
-procedure TLichessBotManager.CheckBotIfNotFailed(Bot: TLichessBot);
-begin
-  if (Bot.State in [bsTryingStart, bsStarted]) and (not Bot.ExternalApplication.Running) then
+  if (ABot.State in [bsTryingStart, bsStarted]) and (not ABot.ExternalApplication.Running) then
   begin
-    if Bot.State = bsTryingStart then
+    if ABot.State = bsTryingStart then
     begin
-      Bot.State := bsStartFailed;
+      ABot.State := bsStartFailed;
       AbortStartOfAllBots;
-      Bot.AddFail('Failed to start bot');
+      ABot.AddFail('Failed to start bot');
     end
     else
     begin
-      Bot.State := bsLetterFailed;
+      ABot.State := bsTerminatedUnexpectly;
       if FRestartBotIfFails then
       begin
-        Bot.AddFail('Bot terminated unexpectly, I will try to start it again');
-        Bot.RequiredStart := True;
+        ABot.RequiredStart := True;
+        ABot.AddFail('Bot terminated unexpectly, exitcode: ' + ExitCodeToString(ABot.ExternalApplication.ExitCode, ofIO) + ' I will try to start it again');
       end
       else
-        Bot.AddFail('Bot terminated unexpectly');
+        ABot.AddFail('Bot terminated unexpectly');
     end;
-    Changed;
   end;
 end;
 

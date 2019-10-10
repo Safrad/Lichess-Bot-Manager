@@ -62,6 +62,7 @@ type
     procedure ClearErrors1Click(Sender: TObject);
   private
     FLichessBotManager: TLichessBotManager;
+    function MinimizeInsteadOfClose: BG;
     procedure ReadFolder;
     procedure RWOptions(const Save: BG);
     procedure SetLichessBotManager(const Value: TLichessBotManager);
@@ -126,14 +127,14 @@ begin
     if Bot.ExternalApplication.Handle <> INVALID_HANDLE_VALUE then
       Data := Bot.ProcessMemoryCounters.WorkingSetSize
     else
-      Data := NAStr;
+      Data := 0;
   end;
   7:
   begin
     if Bot.ExternalApplication.Handle <> INVALID_HANDLE_VALUE then
-      Data := Bot.ProcessMemoryCounters.PeekWorkingSetSize
+      Data := Bot.ProcessMemoryCounters.PeakWorkingSetSize
     else
-      Data := NAStr;
+      Data := 0;
   end;
   8:
   begin
@@ -151,9 +152,9 @@ begin
     if Bot.ExternalApplication.Handle <> INVALID_HANDLE_VALUE then
     begin
       if Bot.ExternalApplication.ExitCode = STILL_ACTIVE then
-        Data := '?'
+        Data := ''
       else
-        Data := NToS(Bot.ExternalApplication.ExitCode, ofDisplay, 16) + ' h';
+        Data := ExitCodeToString(Bot.ExternalApplication.ExitCode, ofDisplay);
     end
     else
       Data := NAStr; // Not run yet or failed to run
@@ -231,8 +232,7 @@ procedure TfMain.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   // Action = csHide by default
 
-  // Minimizes application instead of close it
-  if IsRelease and (not Application.Terminated) and (not IsIconic(Application.Handle)) then
+  if MinimizeInsteadOfClose then
   begin
     Action := caNone;
     Application.Minimize;
@@ -241,12 +241,20 @@ end;
 
 procedure TfMain.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 var
-  Count: UG;
+  PlayingBotCount: UG;
+  RunningBotCount: UG;
+  s: string;
 begin
-  Count := FLichessBotManager.RunningBotCount;
-  if Count > 0 then
+  PlayingBotCount := FLichessBotManager.PlayingBotCount;
+  RunningBotCount := FLichessBotManager.RunningBotCount;
+  if ((PlayingBotCount > 0) or (RunningBotCount > 0)) and (not MinimizeInsteadOfClose) then
   begin
-    CanClose := Confirmation('Number of Lichess Bots running is ' + NToS(Count) + '. Do you want to close application and stop them?', [mbYes, mbNo]) = mbYes;
+    if PlayingBotCount > 0 then
+      s := 'Warning! Closing application may cause losing game on time! ' + NToS(PlayingBotCount) + ' / ' + NToS(RunningBotCount) + ' Lichess Bots are playing game.'
+    else
+      s := NToS(RunningBotCount) + ' Lichess Bots are running.';
+    s := s + ' Do you want to close application anyway?';
+    CanClose := Confirmation(s, [mbYes, mbNo]) = mbYes;
   end;
 end;
 
@@ -279,12 +287,7 @@ end;
 
 procedure TfMain.OnBotChange(Sender: TObject);
 begin
-  try
-    DView1.DataChanged;
-  except
-    on E: Exception do
-      Fatal(E);
-  end;
+  TThread.Queue(TThread.Current, DView1.DataChanged);
 end;
 
 procedure TfMain.OpenLichessBotWebPage1Click(Sender: TObject);
@@ -306,7 +309,13 @@ begin
 end;
 
 procedure TfMain.PopupMenu1Popup(Sender: TObject);
+var
+  E: BG;
+  i: Integer;
 begin
+  E := DView1.SelCount > 0;
+  for i := 0 to SelectedBots1.Count - 1 do
+    SelectedBots1.Items[i].Enabled := E;
   MenuUpdate(SelectedBots1, PopupMenu1.Items);
 end;
 
@@ -405,7 +414,7 @@ begin
   DView1.AddColumn('Memory Peak', 0, taRightJustify);
   DView1.Columns[7].Formatter := ByteFormatter;
   DView1.AddColumn('Initialization Time [ms]', 0, taRightJustify);
-  DView1.AddColumn('Status', 0, taLeftJustify);
+  DView1.AddColumn('State', 0, taLeftJustify);
   DView1.AddColumn('Exit Code', 0, taRightJustify);
   DView1.AddColumn('Value Errors', 0, taRightJustify);
   DView1.AddColumn('Errors', 0, taRightJustify);
@@ -419,8 +428,8 @@ end;
 function TfMain.GetStateAsText(const Bot: TLichessBot): string;
 begin
   case Bot.State of
-    bsNone:
-      Result := '–';
+    bsStopped:
+      Result := 'Stopped';
     bsTryingStart:
       begin
         DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncOrange));
@@ -431,9 +440,10 @@ begin
         DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncRed));
         Result := 'Failed to start';
       end;
-    bsStopped:
+    bsTerminatedUnexpectly:
       begin
-        Result := 'Stopped';
+        DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncRed));
+        Result := 'Terminated unexpectly';
       end;
     bsStarted:
       begin
@@ -451,6 +461,11 @@ begin
     DView1.Bitmap.Canvas.Brush.Color := MixColors(DView1.Bitmap.Canvas.Brush.Color, TNamedColors.GetColor(TNamedColorEnum.ncYellow));
     AppendStrSeparator(Result, 'Scheduled to stop', ' | ');
   end;
+end;
+
+function TfMain.MinimizeInsteadOfClose: BG;
+begin
+  Result := (not Application.Terminated) and (not IsIconic(Application.Handle));
 end;
 
 procedure TfMain.Start1Click(Sender: TObject);

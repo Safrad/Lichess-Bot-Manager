@@ -45,6 +45,7 @@ object fMain: TfMain
     end
     object SelectedBots1: TMenuItem
       Caption = 'Selected Bot(s)'
+      OnClick = PopupMenu1Popup
       object Start1: TMenuItem
         Caption = 'Start'
         OnClick = Start1Click
