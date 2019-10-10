@@ -14,7 +14,7 @@ uses
   uProcessMemory;
 
 type
-  TBotState = (bsNone, bsTryingStart, bsStartFailed, bsLetterFailed, bsStarted, bsStopped);
+  TBotState = (bsStopped, bsTryingStart, bsStartFailed, bsTerminatedUnexpectly, bsStarted);
 
   TLichessBot = class
   private
@@ -37,6 +37,8 @@ type
     FValueErrorCount: UG;
     FLastGameDate: TDateTime;
     FOnChange: TNotifyEvent;
+    FProcessMemoryCounters: TProcessMemoryCounters;
+    procedure UpdateProcessMemoryCounters;
 
     procedure Clear;
     procedure Changed;
@@ -148,7 +150,8 @@ end;
 
 function TLichessBot.GetProcessMemoryCounters: TProcessMemoryCounters;
 begin
-  Result := GetProcessMemoryCountersRecursive(FExternalApplication.ProcessId);
+  UpdateProcessMemoryCounters;
+  Result := FProcessMemoryCounters;
 end;
 
 function TLichessBot.GetContainsError(const ALowerCaseText: string): BG;
@@ -190,7 +193,7 @@ procedure TLichessBot.Clear;
 begin
   FQueuedGames := 0;
   FUsedGames := 0;
-  FState := bsNone;
+  FState := bsStopped;
   Changed;
 end;
 
@@ -285,10 +288,14 @@ begin
     Inc(InTextIndex, Length(TotalUsedStr));
     LastUsedGames := FUsedGames;
     FUsedGames := ReadSGFast(AText, InTextIndex);
-    if FUsedGames > LastUsedGames then
+    if FUsedGames <> LastUsedGames then
     begin
-      FLastGameDate := Now;
-      Inc(FPlayedGames, FUsedGames - LastUsedGames);
+      if FUsedGames > LastUsedGames then
+      begin
+        FLastGameDate := Now;
+        Inc(FPlayedGames, FUsedGames - LastUsedGames);
+      end;
+      UpdateProcessMemoryCounters;
     end;
   end;
   Changed;
@@ -414,6 +421,14 @@ begin
     FRequiredStop := True;
     Changed;
   end;
+end;
+
+procedure TLichessBot.UpdateProcessMemoryCounters;
+var
+  Actual: TProcessMemoryCounters;
+begin
+  Actual := GetProcessMemoryCountersRecursive(FExternalApplication.ProcessId);
+  FProcessMemoryCounters.Update(Actual);
 end;
 
 end.
